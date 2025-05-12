@@ -21,6 +21,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Create output directory
+        run: mkdir -p output
+      
+      - name: Create empty output files if they don't exist
+        run: |
+          touch output/lateEntries.txt
+          touch output/noChecklist.txt
+          touch output/reminders.txt
+      
       - name: Run index.js
         run: node index.js
         env:
