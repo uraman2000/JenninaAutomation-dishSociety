@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index.js",
+    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "start": "cross-env NODE_ENV=production node index.js",
     "send": "node sendMail.js"
   },
   "author": "",
@@ -16,5 +17,8 @@
     "nodemon": "^3.1.10",
     "puppeteer": "^24.8.2",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
   }
 }

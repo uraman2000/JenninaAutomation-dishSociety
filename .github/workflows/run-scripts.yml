@@ -33,6 +33,7 @@ jobs:
       - name: Run index.js
         run: node index.js
         env:
+          NODE_ENV: production
           JENNINA_USERNAME: ${{ secrets.JENNINA_USERNAME }}
           JENNINA_PASSWORD: ${{ secrets.JENNINA_PASSWORD }}
           BREVO_USN: ${{ secrets.BREVO_USN }}
@@ -42,6 +43,7 @@ jobs:
       - name: Run sendMail.js
         run: node sendMail.js
         env:
+          NODE_ENV: production
           BREVO_USN: ${{ secrets.BREVO_USN }}
           BREVO_PASS: ${{ secrets.BREVO_PASS }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }} 

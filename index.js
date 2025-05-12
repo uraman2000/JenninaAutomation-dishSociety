@@ -254,10 +254,21 @@ async function downloadAndProcessReport() {
     fs.mkdirSync(downloadPath, { recursive: true });
   }
   
-  // Launch browser
+  // Determine if we're in a development environment or not
+  const isDev = process.env.NODE_ENV === 'development';
+  console.log(`Running in ${isDev ? 'development' : 'production'} mode`);
+  
+  // Launch browser - use headless mode in production, non-headless in dev
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: !isDev,
     defaultViewport: { width: 1280, height: 800 },
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu'
+    ]
   });
 
   // Create a new page
