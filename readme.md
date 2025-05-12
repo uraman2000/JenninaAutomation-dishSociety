@@ -60,3 +60,30 @@ All results will be saved in the `output` folder:
 - You can run the application daily to get updated reports
 
 For additional help, please contact your system administrator.
+
+## GitHub Actions Automation
+
+This project includes a GitHub Actions workflow that automatically runs the application every day at 9:00 PM Philippine time.
+
+### Setting Up GitHub Secrets
+
+For the GitHub Action to work, you need to add your credentials as repository secrets:
+
+1. Go to your GitHub repository
+2. Click on "Settings" > "Secrets and variables" > "Actions"
+3. Click "New repository secret"
+4. Add each of the following secrets:
+   - `JENNINA_USERNAME`: Your Fusion Prep username
+   - `JENNINA_PASSWORD`: Your Fusion Prep password
+   - `BREVO_USN`: Your Brevo SMTP username
+   - `BREVO_PASS`: Your Brevo SMTP password
+   - `TO_EMAIL`: Email address to send reports to
+
+### Manual Execution
+
+You can also manually trigger the workflow:
+1. Go to the "Actions" tab in your GitHub repository
+2. Select the "Run Scripts Daily" workflow
+3. Click "Run workflow"
+
+The workflow will execute both the main script (index.js) and the email sending script (sendMail.js) in sequence.
