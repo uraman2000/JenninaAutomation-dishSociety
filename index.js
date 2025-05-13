@@ -102,24 +102,52 @@ function identifyLateEntries(reportData) {
     foundChecklistItems[store.store] = new Set();
   });
   
+  // Group entries by store and activity name to handle duplicates
+  const groupedEntries = {};
   reportData.forEach(entry => {
+    const storeKey = entry.Store.toLowerCase();
+    const activityKey = entry.Name.trim().toLowerCase();
+    const key = `${storeKey}|${activityKey}`;
+    
+    if (!groupedEntries[key]) {
+      groupedEntries[key] = [];
+    }
+    groupedEntries[key].push(entry);
+  });
+  
+  // Process grouped entries
+  Object.keys(groupedEntries).forEach(key => {
+    const entries = groupedEntries[key];
+    if (!entries || entries.length === 0) return;
+    
+    // Sort entries by time (earliest first)
+    entries.sort((a, b) => {
+      // Convert times to comparable values (assuming format "H:MM AM/PM")
+      const timeA = convertTimeToMinutes(a.Time);
+      const timeB = convertTimeToMinutes(b.Time);
+      return timeA - timeB;
+    });
+    
+    // Use only the earliest entry for checking if late
+    const earliestEntry = entries[0];
+    
     // Find the corresponding store in storeData - make case-insensitive
     const store = storeData.find(store => 
-      store.store.toLowerCase() === entry.Store.toLowerCase()
+      store.store.toLowerCase() === earliestEntry.Store.toLowerCase()
     );
     if (!store) return;
     
     // Determine if the entry is AM or PM
-    const entryPeriod = entry.Time.split(' ')[1].toUpperCase();
+    const entryPeriod = earliestEntry.Time.split(' ')[1].toUpperCase();
     
     // Find matching checklist items with the same AM/PM period
     // Make activity name matching more flexible with includes() rather than exact match
     const matchingChecklistItems = store.checklist.filter(item => {
       const itemPeriod = item.time.toLowerCase().includes('am') ? 'AM' : 'PM';
       return itemPeriod === entryPeriod && 
-        (entry.Name.trim().toLowerCase() === item.activity.toLowerCase() ||
-         entry.Name.trim().toLowerCase().includes(item.activity.toLowerCase()) ||
-         item.activity.toLowerCase().includes(entry.Name.trim().toLowerCase()));
+        (earliestEntry.Name.trim().toLowerCase() === item.activity.toLowerCase() ||
+         earliestEntry.Name.trim().toLowerCase().includes(item.activity.toLowerCase()) ||
+         item.activity.toLowerCase().includes(earliestEntry.Name.trim().toLowerCase()));
     });
     
     if (matchingChecklistItems.length > 0) {
@@ -127,7 +155,7 @@ function identifyLateEntries(reportData) {
       const checklistItem = matchingChecklistItems[0];
       
       // Mark this checklist item as found for this store
-      foundChecklistItems[entry.Store].add(checklistItem.activity);
+      foundChecklistItems[earliestEntry.Store].add(checklistItem.activity);
       
       // Parse scheduled time
       const scheduledTime = checklistItem.time.toLowerCase();
@@ -144,7 +172,7 @@ function identifyLateEntries(reportData) {
       }
       
       // Parse actual time
-      const [actualTime, period] = entry.Time.split(' ');
+      const [actualTime, period] = earliestEntry.Time.split(' ');
       const [actualHour, actualMinute] = actualTime.split(':');
       let actualHourNumber = parseInt(actualHour);
       const actualMinuteNumber = parseInt(actualMinute);
@@ -163,19 +191,26 @@ function identifyLateEntries(reportData) {
       const diffInMinutes = actualTimeInMinutes - scheduledTimeInMinutes;
       
       // Debug time calculations
-      console.log(`\nTime calculation for ${entry.Store} - ${entry.Name}:`);
+      console.log(`\nTime calculation for ${earliestEntry.Store} - ${earliestEntry.Name}:`);
       console.log(`  Scheduled: ${checklistItem.time} (${scheduledHourNumber}:${scheduledMinuteNumber}) = ${scheduledTimeInMinutes} minutes`);
-      console.log(`  Actual: ${entry.Time} (${actualHourNumber}:${actualMinuteNumber}) = ${actualTimeInMinutes} minutes`);
+      console.log(`  Actual: ${earliestEntry.Time} (${actualHourNumber}:${actualMinuteNumber}) = ${actualTimeInMinutes} minutes`);
       console.log(`  Difference: ${diffInMinutes} minutes`);
+      
+      if (entries.length > 1) {
+        console.log(`  NOTE: Found ${entries.length} entries for this activity. Using earliest time: ${earliestEntry.Time}`);
+        console.log(`  All times for this activity: ${entries.map(e => e.Time).join(', ')}`);
+      }
       
       // If more than 20 minutes late, add to late entries
       if (diffInMinutes > 20) {
         console.log(`  LATE ENTRY DETECTED: ${diffInMinutes} minutes late`);
         lateEntries.push({
-          ...entry,
+          ...earliestEntry,
           scheduledTime: checklistItem.time,
           lateByMinutes: diffInMinutes
         });
+      } else {
+        console.log(`  Entry is on time or within allowed window (${diffInMinutes} minutes)`);
       }
     }
   });
@@ -265,6 +300,24 @@ function identifyLateEntries(reportData) {
     lateEntries,
     noChecklist
   };
+}
+
+// Helper function to convert time string to minutes for easier comparison
+function convertTimeToMinutes(timeString) {
+  const [time, period] = timeString.split(' ');
+  const [hours, minutes] = time.split(':').map(Number);
+  
+  let totalMinutes = hours * 60 + minutes;
+  
+  // Adjust for AM/PM
+  if (period.toUpperCase() === 'PM' && hours < 12) {
+    totalMinutes += 12 * 60;
+  }
+  if (period.toUpperCase() === 'AM' && hours === 12) {
+    totalMinutes -= 12 * 60;
+  }
+  
+  return totalMinutes;
 }
 
 // Function to format reminder messages by store
