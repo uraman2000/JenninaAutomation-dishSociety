@@ -180,13 +180,85 @@ function identifyLateEntries(reportData) {
     }
   });
   
-  // Check which checklist items were not found for each store
+  // Before we start checking, clear the noChecklist arrays for all stores
   storeData.forEach(store => {
+    noChecklist[store.store] = [];
+  });
+  
+  storeData.forEach(store => {
+    console.log(`\n=== Checking missing activities for store: ${store.store} ===`);
+    
+    // Log all entries available for this store upfront
+    const allStoreEntries = reportData.filter(entry => 
+      entry.Store.toLowerCase() === store.store.toLowerCase()
+    );
+    console.log(`Available entries in report for ${store.store}:`);
+    allStoreEntries.forEach(entry => {
+      console.log(`- ${entry.Name}`);
+    });
+    console.log("\nChecking each checklist activity:");
+    
+    // If this is Katy store, do extra detailed logging
+    const isKaty = store.store.toLowerCase() === 'katy';
+    
     store.checklist.forEach(item => {
-      if (!foundChecklistItems[store.store].has(item.activity)) {
+      // Extra debug log for TRANSITION at Katy
+      if (isKaty && item.activity.toLowerCase().includes('transition')) {
+        console.log(`\n🔍 DETAILED DEBUG for Katy TRANSITION check:`);
+        console.log(`Looking for activity: "${item.activity}"`);
+        console.log(`All entries for Katy:`);
+        allStoreEntries.forEach(entry => {
+          const entryName = entry.Name.toLowerCase();
+          const activityName = item.activity.toLowerCase();
+          const entryContainsActivity = entryName.includes(activityName);
+          const activityContainsEntry = activityName.includes(entryName);
+          console.log(`- "${entry.Name}": contains "${item.activity}"? ${entryContainsActivity}, is contained in "${item.activity}"? ${activityContainsEntry}`);
+        });
+      }
+      
+      // Get the activity name in lowercase for case-insensitive matching
+      const activityName = item.activity.toLowerCase();
+      
+      // Check if any entry for this store contains this activity
+      const matchingEntries = reportData.filter(entry => {
+        // Make sure we're checking entries for the correct store
+        if (entry.Store.toLowerCase() !== store.store.toLowerCase()) {
+          return false;
+        }
+        
+        // Simple check: does the entry name contain the activity name (or vice versa)?
+        const entryName = entry.Name.toLowerCase();
+        const matches = entryName.includes(activityName) || activityName.includes(entryName);
+        
+        // Extra logging for Katy TRANSITION
+        if (isKaty && item.activity.toLowerCase().includes('transition')) {
+          console.log(`Checking entry "${entry.Name}" for TRANSITION match: ${matches}`);
+        }
+        
+        return matches;
+      });
+      
+      if (matchingEntries.length > 0) {
+        console.log(`✓ Found activity "${item.activity}" in report data:`);
+        matchingEntries.forEach(entry => {
+          console.log(`  - ${entry.Name} (${entry.Time})`);
+        });
+      } else {
+        console.log(`✗ Missing activity: "${item.activity}"`);
+        // Extra check for Katy and TRANSITION
+        if (isKaty && item.activity.toLowerCase().includes('transition')) {
+          console.log(`👉 WARNING: "${item.activity}" not found in any entry for Katy!`);
+        }
         noChecklist[store.store].push(item.activity);
       }
     });
+    
+    // Summary after checking all activities for this store
+    if (noChecklist[store.store].length === 0) {
+      console.log(`\n✅ All checklist activities found for ${store.store}`);
+    } else {
+      console.log(`\n⚠️ Missing activities for ${store.store}: ${noChecklist[store.store].join(', ')}`);
+    }
   });
   
   return {
@@ -252,6 +324,20 @@ async function downloadAndProcessReport() {
   // Create downloads directory if it doesn't exist
   if (!fs.existsSync(downloadPath)) {
     fs.mkdirSync(downloadPath, { recursive: true });
+  }
+  
+  // Clean up any existing Excel files
+  console.log('Cleaning up existing Excel files...');
+  try {
+    const files = fs.readdirSync(downloadPath);
+    for (const file of files) {
+      if (file.endsWith('.xlsx') || file.endsWith('.xls')) {
+        console.log(`Deleting: ${file}`);
+        fs.unlinkSync(path.join(downloadPath, file));
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up files:', error);
   }
   
   // Determine if we're in a development environment or not
